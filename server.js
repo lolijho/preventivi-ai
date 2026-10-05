@@ -8,9 +8,56 @@ const quote = require('./lib/quote');
 const render = require('./lib/render');
 const pdf = require('./lib/pdf');
 const store = require('./lib/store');
+const auth = require('./lib/auth');
 
 const app = express();
+app.set('trust proxy', 1);
 app.use(express.json({ limit: '1mb' }));
+
+/* ---------- accesso (attivo solo con APP_USER e APP_PASSWORD impostate) ---------- */
+
+const PUBBLICHE = new Set(['/login', '/login.html', '/api/login']);
+
+function cookieSessione(token, req) {
+  const sicuro = req.headers['x-forwarded-proto'] === 'https' ? '; Secure' : '';
+  return `sessione=${token}; Path=/; HttpOnly; SameSite=Lax; Max-Age=${7 * 24 * 3600}${sicuro}`;
+}
+
+app.use((req, res, next) => {
+  if (!auth.attiva()) return next();
+  if (PUBBLICHE.has(req.path)) return next();
+  if (auth.verificaToken(auth.leggiCookie(req, 'sessione'))) return next();
+  if (req.path.startsWith('/api/')) {
+    return res.status(401).json({ errore: 'Sessione scaduta o mancante. Accedi di nuovo.' });
+  }
+  return res.redirect('/login');
+});
+
+app.get('/login', (req, res) => {
+  res.sendFile(path.join(__dirname, 'public', 'login.html'));
+});
+
+app.post('/api/login', (req, res) => {
+  if (!auth.attiva()) return res.status(404).json({ errore: 'Autenticazione non attiva su questo server.' });
+  const ip = req.ip || 'sconosciuto';
+  if (auth.ipBloccato(ip)) {
+    return res.status(429).json({ errore: 'Troppi tentativi falliti. Riprova tra un minuto.' });
+  }
+  const ok = auth.credenzialiValide(
+    req.body && req.body.utente,
+    req.body && req.body.password,
+  );
+  auth.esitoTentativo(ip, ok);
+  if (!ok) return res.status(401).json({ errore: 'Utente o password non validi.' });
+  res.setHeader('Set-Cookie', cookieSessione(auth.creaToken(), req));
+  res.json({ ok: true });
+});
+
+app.post('/api/logout', (req, res) => {
+  res.setHeader('Set-Cookie', 'sessione=; Path=/; HttpOnly; SameSite=Lax; Max-Age=0');
+  res.json({ ok: true });
+});
+
 app.use(express.static(path.join(__dirname, 'public')));
 
 /* ---------- stato iniziale ---------- */

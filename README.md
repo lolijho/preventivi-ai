@@ -33,6 +33,16 @@ se i file `data/*.json` esistono ancora vengono importati una sola volta).
 Su Coolify basta creare un database Postgres nell'ambiente dell'app e impostare le
 variabili `DATABASE_URL`, `OPENROUTER_API_KEY` e `OPENROUTER_MODEL`.
 
+## Accesso con utente e password
+
+Impostando le variabili `APP_USER` e `APP_PASSWORD` l'app mostra una pagina di login
+(`/login`) e tutte le rotte (pagine e API) richiedono la sessione; le credenziali si
+cambiano in qualunque momento modificando le variabili e riavviando (il cambio
+invalida all'istante tutte le sessioni aperte). La sessione dura 7 giorni, il cookie
+è firmato con `AUTH_SECRET` (senza, viene rigenerato a ogni riavvio e tutti devono
+rifare il login). Senza queste variabili — sviluppo locale — l'app resta aperta.
+Dopo 5 tentativi falliti in 10 minuti l'IP viene bloccato per un minuto.
+
 ## Come si usa
 
 1. **Impostazioni** (in alto a destra): inserisci una volta sola i dati della tua azienda e l'IBAN. Verranno usati in tutti i preventivi.

@@ -6,6 +6,18 @@
 
 const $ = (id) => document.getElementById(id);
 
+/* Se una chiamata API risponde 401 la sessione è scaduta: torna al login.
+   Il promise non si risolve mai: il redirect interrompe qualunque flusso in corso. */
+const fetchOriginale = window.fetch.bind(window);
+window.fetch = async (...args) => {
+  const risposta = await fetchOriginale(...args);
+  if (risposta.status === 401) {
+    window.location.replace('/login');
+    return new Promise(() => {});
+  }
+  return risposta;
+};
+
 const ESEMPI = {
   tecnico: `Preventivo per il signor Marco Lo Verde, via Oropa 78, 10153 Torino (TO). Sostituzione dello scaldabagno a gas esistente con un nuovo scaldabagno a gas Vaillant Turbo da 14-16 litri al minuto: fornitura apparecchio 1436 euro IVA esclusa, installazione e collaudo inclusi, lavaggio impianto incluso, smaltimento apparecchio vecchio incluso, certificazione impianto D.M. 37/2008 e prima accensione incluse, più un intervento annuo di manutenzione ordinaria a 50 euro. Intervento a domicilio, pagamento con bonifico bancario. Prezzi con IVA agevolata al 10% per intervento su immobile a uso abitativo.`,
   servizi: `Preventivo annuale di servizi digitali per EDU DAF S.r.l., Via di Pietralata 159/A, 00158 Roma, P.IVA 15923401002, codice destinatario SZLUBAI. Include: gestione completa dei social (editoriale, grafiche, pubblicazioni, community), gestione campagne pubblicitarie online con reportistica, modifiche e manutenzione del sito internet, gestione server incluso nell'offerta e sicurezza con backup e ripristino. Canone annuo 2250 euro più IVA, pagamento in 3 rate da 750 euro ciascuna. Budget pubblicitario e licenze terze parti esclusi.`,
@@ -476,6 +488,11 @@ function bindEventi() {
   $('btn-impostazioni').addEventListener('click', () => $('modale-impostazioni').classList.add('aperta'));
   $('btn-chiudi-impostazioni').addEventListener('click', () => $('modale-impostazioni').classList.remove('aperta'));
   $('btn-salva-impostazioni').addEventListener('click', salvaImpostazioni);
+
+  $('btn-esci').addEventListener('click', async () => {
+    await fetch('/api/logout', { method: 'POST' });
+    window.location.replace('/login');
+  });
 }
 
 caricaStato();

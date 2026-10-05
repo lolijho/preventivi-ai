@@ -1,0 +1,161 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Accesso — Preventivi AI</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,400..900;1,9..144,400..900&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --paper: #f4f0e6;
+    --ink: #17233f;
+    --ink-soft: #46516b;
+    --gold: #b9862f;
+    --card: #fffdf8;
+    --hair: #ddd5c2;
+    --red: #b3402c;
+  }
+  * { box-sizing: border-box; }
+  html, body {
+    margin: 0; padding: 0; min-height: 100vh;
+    background:
+      linear-gradient(0deg, rgba(185, 134, 47, 0.035) 1px, transparent 1px) 0 0 / 100% 28px,
+      var(--paper);
+    color: var(--ink);
+    font-family: "Inter", "Helvetica Neue", Arial, sans-serif;
+    display: flex; align-items: center; justify-content: center;
+    padding: 24px;
+  }
+  .carta {
+    width: 100%; max-width: 380px;
+    background: var(--card);
+    border: 1px solid var(--hair);
+    border-radius: 10px;
+    padding: 34px 30px 30px;
+    box-shadow: 0 18px 40px rgba(23, 35, 63, 0.08);
+  }
+  .marchio {
+    width: 40px; height: 40px; color: var(--gold);
+    display: block; margin-bottom: 14px;
+  }
+  h1 {
+    font-family: "Fraunces", Georgia, serif;
+    font-weight: 700; font-size: 26px; letter-spacing: -0.4px;
+    margin: 0 0 4px;
+  }
+  h1 em { font-style: italic; color: var(--gold); }
+  .sottotitolo { font-size: 12.5px; color: var(--ink-soft); margin: 0 0 22px; line-height: 1.5; }
+  label { display: block; font-size: 12px; font-weight: 600; margin-bottom: 6px; letter-spacing: 0.2px; }
+  input {
+    width: 100%; font: inherit; font-size: 14px;
+    color: var(--ink); background: #fff;
+    border: 1px solid var(--hair); border-radius: 7px;
+    padding: 10px 12px; outline: none;
+    transition: border-color 0.12s ease, box-shadow 0.12s ease;
+    margin-bottom: 14px;
+  }
+  input:focus { border-color: var(--gold); box-shadow: 0 0 0 3px rgba(185, 134, 47, 0.14); }
+  button {
+    width: 100%; justify-content: center;
+    display: inline-flex; align-items: center; gap: 8px;
+    font: inherit; font-weight: 600; font-size: 15px;
+    color: #f6f2e8; background: var(--ink);
+    border: 1px solid var(--ink); border-radius: 8px;
+    padding: 12px 14px; cursor: pointer;
+    transition: background 0.15s ease, transform 0.06s ease;
+    margin-top: 4px;
+  }
+  button:hover { background: #22335c; }
+  button:active { transform: translateY(1px); }
+  button:disabled { opacity: 0.55; cursor: wait; }
+  .errore {
+    display: none;
+    background: rgba(179, 64, 44, 0.08);
+    border: 1px solid rgba(179, 64, 44, 0.35);
+    color: var(--red);
+    border-radius: 7px;
+    font-size: 12.5px; line-height: 1.45;
+    padding: 9px 11px; margin: 0 0 14px;
+  }
+  .errore.visibile { display: block; }
+  .spin {
+    width: 15px; height: 15px; flex: none;
+    border: 2px solid rgba(246, 242, 232, 0.35);
+    border-top-color: #f6f2e8;
+    border-radius: 50%;
+    animation: gira 0.7s linear infinite;
+  }
+  @keyframes gira { to { transform: rotate(360deg); } }
+  .piede {
+    margin-top: 22px; padding-top: 16px;
+    border-top: 1px solid var(--hair);
+    font-size: 11px; color: var(--ink-soft); text-align: center;
+  }
+</style>
+</head>
+<body>
+
+<div class="carta">
+  <svg class="marchio" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+    <path d="M6 3h9l4 4v14H6V3Z" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/>
+    <path d="M14.5 3v4.5H19" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/>
+    <path d="M9 12h7M9 15.5h7M9 8.5h3" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>
+  </svg>
+  <h1>Preventivi <em>AI</em></h1>
+  <p class="sottotitolo">Area riservata. Inserisci le credenziali per accedere al banco da disegno.</p>
+
+  <div class="errore" id="errore"></div>
+
+  <form id="modulo" autocomplete="off">
+    <label for="utente">Utente</label>
+    <input id="utente" type="text" autocomplete="username" autofocus>
+    <label for="password">Password</label>
+    <input id="password" type="password" autocomplete="current-password">
+    <button id="btn-entra" type="submit">Accedi</button>
+  </form>
+
+  <div class="piede">Sessione valida 7 giorni · le credenziali si cambiano nelle variabili d'ambiente</div>
+</div>
+
+<script>
+'use strict';
+
+const $ = (id) => document.getElementById(id);
+
+$('modulo').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const btn = $('btn-entra');
+  const box = $('errore');
+  box.classList.remove('visibile');
+  const utente = $('utente').value.trim();
+  const password = $('password').value;
+  if (!utente || !password) {
+    box.textContent = 'Inserisci utente e password.';
+    box.classList.add('visibile');
+    return;
+  }
+  btn.disabled = true;
+  btn.innerHTML = '<span class="spin"></span> Verifica in corso…';
+  try {
+    const r = await fetch('/api/login', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ utente, password }),
+    });
+    const d = await r.json().catch(() => ({}));
+    if (!r.ok) throw new Error(d.errore || 'Accesso non riuscito.');
+    window.location.replace('/');
+  } catch (err) {
+    box.textContent = err.message;
+    box.classList.add('visibile');
+    btn.disabled = false;
+    btn.textContent = 'Accedi';
+    $('password').focus();
+    $('password').select();
+  }
+});
+</script>
+</body>
+</html>
