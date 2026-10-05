@@ -1,0 +1,11 @@
+node_modules
+data
+.env
+demo
+*.pdf
+server.log
+.git
+.sciamy
+test_pdf.py
+Dockerfile
+.dockerignore

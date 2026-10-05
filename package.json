@@ -1,0 +1,19 @@
+{
+  "name": "preventivi-ai",
+  "version": "1.0.0",
+  "description": "Generatore di preventivi PDF con AI GLM 5.3 Flash",
+  "main": "server.js",
+  "type": "commonjs",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node --watch server.js"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "dependencies": {
+    "express": "^4.21.2",
+    "pg": "^8.23.1",
+    "puppeteer-core": "^23.11.1"
+  }
+}

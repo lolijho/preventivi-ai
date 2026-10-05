@@ -1,0 +1,203 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Preventivi AI — generatore di preventivi</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,400..900;1,9..144,400..900&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/styles.css">
+</head>
+<body>
+
+<header class="topbar">
+  <div class="brand">
+    <svg class="brand-mark" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+      <path d="M6 3h9l4 4v14H6V3Z" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/>
+      <path d="M14.5 3v4.5H19" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/>
+      <path d="M9 12h7M9 15.5h7M9 8.5h3" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>
+    </svg>
+    <div>
+      <div class="brand-name">Preventivi <em>AI</em></div>
+      <div class="brand-sub" id="modello-label">—</div>
+    </div>
+  </div>
+  <div class="topbar-actions">
+    <button class="btn ghost" id="btn-archivio" type="button">
+      <svg viewBox="0 0 24 24" fill="none"><path d="M4 7h16M4 7l2 12h12l2-12M4 7l1-3h14l1 3M10 11h4" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      Archivio
+    </button>
+    <button class="btn ghost" id="btn-impostazioni" type="button">
+      <svg viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="3" stroke="currentColor" stroke-width="1.6"/><path d="M12 4v2.5M12 17.5V20M4 12h2.5M17.5 12H20M6.3 6.3l1.8 1.8M15.9 15.9l1.8 1.8M17.7 6.3l-1.8 1.8M8.1 15.9l-1.8 1.8" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>
+      Impostazioni
+    </button>
+  </div>
+</header>
+
+<main class="workbench">
+  <!-- colonna sinistra: descrizione / editor -->
+  <section class="panel">
+
+    <div class="card" id="card-descrizione">
+      <label class="field-label" for="descrizione">Descrivi il lavoro</label>
+      <p class="hint">Testo libero, email, messaggio WhatsApp: l'AI estrae cliente, voci di lavoro e prezzi.</p>
+      <textarea id="descrizione" rows="9" placeholder="Es. Preventivo per il signor Marco Lo Verde, via Oropa 78 Torino. Sostituzione scaldabagno a gas Vaillant da 14-16 l/min, comprensiva di ritiro del vecchio apparecchio, lavaggio impianto, collaudo e certificazione D.M. 37/2008. Pagamento a bonifico."></textarea>
+      <div class="esempi">
+        <span class="esempi-lbl">Esempi:</span>
+        <button class="chip" type="button" data-esempio="tecnico">Sostituzione scaldabagno</button>
+        <button class="chip" type="button" data-esempio="servizi">Canone servizi IT</button>
+      </div>
+      <div class="seg" id="seg-template" role="group" aria-label="Layout">
+        <button type="button" class="seg-btn attivo" data-template="auto">Auto</button>
+        <button type="button" class="seg-btn" data-template="servizi">Servizi</button>
+        <button type="button" class="seg-btn" data-template="tecnico">Tecnico</button>
+      </div>
+      <button class="btn primary big" id="btn-genera" type="button">
+        <svg viewBox="0 0 24 24" fill="none"><path d="M12 2.5l1.9 5.4 5.6 1.9-5.6 1.9L12 17.1l-1.9-5.4-5.6-1.9 5.6-1.9L12 2.5Z" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/><path d="M18.5 15.5l.9 2.4 2.6.9-2.6.9-.9 2.4-.9-2.4-2.6-.9 2.6-.9.9-2.4Z" fill="currentColor"/></svg>
+        Genera con l'AI
+      </button>
+      <div class="stato-ai" id="stato-ai"></div>
+    </div>
+
+    <div class="card hidden" id="card-editor">
+      <div class="editor-head">
+        <div class="field-label">Preventivo <span id="ed-numero" class="mono"></span></div>
+        <div class="editor-azioni">
+          <button class="btn small" id="btn-rigenera" type="button">Rigenera</button>
+          <button class="btn small ghost" id="btn-nuovo" type="button">Nuovo</button>
+        </div>
+      </div>
+
+      <div class="seg" id="seg-template-2" role="group" aria-label="Layout del documento">
+        <button type="button" class="seg-btn" data-template="servizi">Servizi</button>
+        <button type="button" class="seg-btn" data-template="tecnico">Tecnico</button>
+      </div>
+
+      <details open>
+        <summary>Dati generali</summary>
+        <div class="grid-2">
+          <label>Numero<input id="f-numero" type="text"></label>
+          <label>Data<input id="f-data" type="text" placeholder="GG/MM/AAAA"></label>
+        </div>
+        <label>Oggetto<input id="f-oggetto" type="text"></label>
+        <label>Introduzione<textarea id="f-intro" rows="3"></textarea></label>
+        <div class="grid-2">
+          <label>Validit&agrave;<input id="f-validita" type="text"></label>
+          <label>IVA %<input id="f-iva" type="number" min="0" max="100" step="1"></label>
+        </div>
+        <div class="grid-2">
+          <label>Modalit&agrave; <span class="solo-tecnico">(tecnico)</span><input id="f-modalita" type="text"></label>
+          <label>Pagamento<input id="f-pagamento" type="text"></label>
+        </div>
+      </details>
+
+      <details open>
+        <summary>Cliente</summary>
+        <label>Nome / ragione sociale<input id="f-cliente-nome" type="text"></label>
+        <label>Indirizzo<input id="f-cliente-indirizzo" type="text"></label>
+        <div class="grid-2">
+          <label>P.IVA<input id="f-cliente-piva" type="text"></label>
+          <label>Cod. destinatario<input id="f-cliente-codice" type="text"></label>
+        </div>
+        <div class="grid-2">
+          <label>Email<input id="f-cliente-email" type="text"></label>
+          <label>Telefono<input id="f-cliente-telefono" type="text"></label>
+        </div>
+      </details>
+
+      <details open>
+        <summary>Voci</summary>
+        <div id="voci-editor"></div>
+        <button class="btn small" id="btn-add-voce" type="button">+ Aggiungi voce</button>
+      </details>
+
+      <details>
+        <summary>Riepilogo e firme</summary>
+        <div class="grid-2">
+          <label>Etichetta imponibile<input id="f-imponibile-label" type="text" placeholder="Imponibile"></label>
+          <label>Etichetta totale<input id="f-totale-label" type="text" placeholder="Totale IVA inclusa"></label>
+        </div>
+        <div class="grid-2 solo-servizi">
+          <label>Rata — testo<input id="f-rate-testo" type="text" placeholder="Pagamento in 3 rate da"></label>
+          <label>Rata — importo<input id="f-rate-importo" type="text" placeholder="&euro; 750,00 + IVA"></label>
+        </div>
+        <div class="solo-tecnico">
+          <div class="grid-2">
+            <label>Coordinate — intestato a<input id="f-iban-intestato" type="text"></label>
+            <label>Coordinate — IBAN<input id="f-iban" type="text"></label>
+          </div>
+        </div>
+        <label>Condizioni <span class="hint-inline">(una per riga)</span><textarea id="f-condizioni" rows="4"></textarea></label>
+        <label>Note<textarea id="f-note" rows="2"></textarea></label>
+        <div class="grid-2">
+          <label>Firma emittente<input id="f-firma-emittente" type="text"></label>
+          <label>Ruolo<input id="f-firma-ruolo" type="text"></label>
+        </div>
+        <label>Firma cliente<input id="f-firma-cliente" type="text"></label>
+      </details>
+
+      <div class="editor-cta">
+        <button class="btn primary" id="btn-pdf" type="button">
+          <svg viewBox="0 0 24 24" fill="none"><path d="M12 4v10m0 0l-4-4m4 4l4-4M5 20h14" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          Scarica PDF
+        </button>
+        <button class="btn" id="btn-salva" type="button">Salva in archivio</button>
+      </div>
+    </div>
+
+  </section>
+
+  <!-- colonna destra: anteprima -->
+  <section class="desk-wrap">
+    <div class="desk" id="desk">
+      <div class="sheet-holder" id="sheet-holder">
+        <iframe id="preview" title="Anteprima del preventivo"></iframe>
+      </div>
+      <div class="empty-state" id="empty-state">
+        <svg viewBox="0 0 24 24" fill="none"><path d="M6 3h9l4 4v14H6V3Z" stroke="currentColor" stroke-width="1.2" stroke-linejoin="round"/><path d="M14.5 3v4.5H19" stroke="currentColor" stroke-width="1.2" stroke-linejoin="round"/><path d="M9 12.5h6M9 15.5h6" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg>
+        <div class="empty-title">L'anteprima appare qui</div>
+        <div class="empty-sub">Descrivi il lavoro a sinistra e premi <b>Genera con l'AI</b>: il preventivo si compone in tempo reale, pronto per il PDF.</div>
+      </div>
+    </div>
+  </section>
+</main>
+
+<!-- drawer archivio -->
+<aside class="drawer" id="drawer-archivio" aria-hidden="true">
+  <div class="drawer-head">
+    <div class="field-label">Archivio preventivi</div>
+    <button class="btn small ghost" id="btn-chiudi-archivio" type="button">Chiudi</button>
+  </div>
+  <div id="lista-preventivi" class="lista"></div>
+</aside>
+<div class="velo" id="velo"></div>
+
+<!-- modale impostazioni -->
+<div class="modale" id="modale-impostazioni" aria-hidden="true">
+  <div class="modale-box">
+    <div class="drawer-head">
+      <div class="field-label">La tua azienda (emittente predefinito)</div>
+      <button class="btn small ghost" id="btn-chiudi-impostazioni" type="button">Chiudi</button>
+    </div>
+    <p class="hint">Vengono usati automaticamente in ogni preventivo generato dall'AI.</p>
+    <label>Ragione sociale<input id="s-nome" type="text"></label>
+    <label>Indirizzo<input id="s-indirizzo" type="text"></label>
+    <div class="grid-2">
+      <label>P.IVA<input id="s-piva" type="text"></label>
+      <label>Sito web<input id="s-sito" type="text"></label>
+    </div>
+    <label>Tagline <span class="hint-inline">(solo layout tecnico)</span><input id="s-tagline" type="text"></label>
+    <div class="grid-2">
+      <label>Bonifico — intestato a<input id="s-iban-intestato" type="text"></label>
+      <label>Bonifico — IBAN<input id="s-iban" type="text"></label>
+    </div>
+    <button class="btn primary" id="btn-salva-impostazioni" type="button">Salva impostazioni</button>
+  </div>
+</div>
+
+<div class="toast" id="toast" role="status"></div>
+
+<script src="/app.js"></script>
+</body>
+</html>

@@ -1,0 +1,171 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="UTF-8">
+<title>Preventivo</title>
+<style>
+  /* Layout "tecnico": testata navy a tutta larghezza, banda oro, tabelle su fondo navy.
+     Struttura tabellare: thead si ripete in cima a ogni pagina stampata,
+     tfoot in fondo; il corpo non può mai finire sotto testata o piè. */
+  :root {
+    --navy: #1c2848;
+    --gold: #d4a93e;
+    --ink: #1f2937;
+    --muted: #6b7281;
+    --soft: #edf1f7;
+    --hair: #e2e5ea;
+    --hdr-h: 31mm;
+    --ftr-h: 13mm;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  @page { size: A4; margin: 0; }
+  html, body { width: 210mm; }
+  body {
+    font-family: "Helvetica Neue", Helvetica, Arial, sans-serif;
+    color: var(--ink);
+    font-size: 9.5pt;
+    line-height: 1.45;
+    background: #fff;
+  }
+
+  table.w { width: 210mm; border-collapse: collapse; }
+  table.w > tbody > tr > td,
+  table.w > thead > tr > td,
+  table.w > tfoot > tr > td { padding: 0; vertical-align: top; }
+  table.w > thead > tr > td { height: var(--hdr-h); background: var(--navy); border-bottom: 1.4mm solid var(--gold); }
+  table.w > tfoot > tr > td { height: var(--ftr-h); background: #fff; border-top: 1.4mm solid var(--gold); border-bottom: 1px solid #e8e9ee; }
+  table.w > tbody > tr > td { height: calc(297mm - var(--hdr-h) - var(--ftr-h) - 1.5mm); background: #fff; }
+
+  /* --- testata ripetuta --- */
+  .pg-header { padding: 8mm 16mm 6.5mm; }
+  .head-row { display: flex; justify-content: space-between; align-items: flex-start; }
+  .wordmark { font-size: 20pt; font-weight: 800; letter-spacing: 0.2pt; color: #fff; }
+  .tagline { font-size: 8.5pt; color: #aab2c5; margin-top: 1.6mm; }
+  .head-info { text-align: right; font-size: 8.5pt; color: #b7bdc9; line-height: 1.6; }
+
+  /* --- corpo --- */
+  .pg-body { padding: 9mm 16mm 8mm; }
+
+  .pv-title { font-size: 24pt; font-weight: 800; color: var(--navy); letter-spacing: 0.5pt; }
+  .pv-sub { font-size: 10pt; color: var(--muted); margin-top: 2mm; }
+  .gold-bar { width: 30mm; height: 1.1mm; background: var(--gold); margin-top: 3mm; }
+
+  .boxes { display: flex; gap: 5mm; margin-top: 7.5mm; page-break-inside: avoid; }
+  .box { flex: 1; }
+  .box-head {
+    background: var(--navy); color: #fff;
+    font-size: 9pt; font-weight: 700; letter-spacing: 0.3pt;
+    padding: 2.8mm 4mm;
+  }
+  .box-body { background: var(--soft); padding: 3.5mm 4mm 4mm; }
+  .brow { display: flex; gap: 4mm; margin-bottom: 3mm; }
+  .brow:last-child { margin-bottom: 0; }
+  .brow .blbl { width: 34mm; flex: none; font-size: 7.5pt; color: var(--muted); letter-spacing: 0.3pt; padding-top: 0.7mm; }
+  .brow .bval { flex: 1; font-size: 9.5pt; font-weight: 700; color: var(--navy); }
+
+  .sec-title {
+    font-size: 11pt; font-weight: 800; color: var(--navy);
+    letter-spacing: 0.3pt; margin-top: 8.5mm;
+    padding-bottom: 2.2mm; border-bottom: 1px solid #d8dce3;
+    page-break-after: avoid;
+  }
+  .sec-title.first { margin-top: 7mm; }
+  .sec-par { margin-top: 3mm; text-align: justify; color: #1f2937; page-break-inside: avoid; }
+
+  table.tb { width: 100%; border-collapse: collapse; margin-top: 4mm; }
+  table.tb thead th {
+    background: var(--navy); color: #fff;
+    font-size: 9pt; font-weight: 700; letter-spacing: 0.3pt;
+    text-align: left; padding: 3mm 4mm;
+  }
+  table.tb thead th.c { text-align: center; }
+  table.tb thead th.r { text-align: right; }
+  table.tb thead th.w-fase { width: 20mm; }
+  table.tb thead th.w-qt { width: 18mm; }
+  table.tb thead th.w-importo { width: 32mm; }
+  table.tb tbody tr { page-break-inside: avoid; }
+  table.tb tbody td { padding: 3.4mm 4mm; border-bottom: 1px solid var(--hair); vertical-align: top; }
+  td.fase-num { text-align: center; font-size: 12.5pt; font-weight: 800; color: var(--navy); }
+  .v-tit { font-weight: 700; font-size: 9.5pt; color: #1f2937; }
+  .v-desc { color: var(--muted); font-size: 8.5pt; margin-top: 1mm; }
+  td.qt { text-align: center; font-size: 9pt; color: #374151; }
+  td.imp { text-align: right; font-weight: 700; font-size: 9.5pt; color: #1f2937; white-space: nowrap; }
+
+  .tc-totals { width: 64%; margin-left: auto; margin-top: 6.5mm; page-break-inside: avoid; }
+  .tc-totals .trow { display: flex; justify-content: space-between; padding: 2.2mm 4mm; font-size: 9.5pt; }
+  .tc-totals .trow .lbl { color: #374151; }
+  .tc-totals .trow .val { font-weight: 700; color: #1f2937; white-space: nowrap; }
+  .tc-totals .tot {
+    background: var(--navy); color: #fff;
+    padding: 3.4mm 4mm; display: flex; justify-content: space-between;
+  }
+  .tc-totals .tot .lbl { color: #fff; font-weight: 700; letter-spacing: 0.3pt; }
+  .tc-totals .tot .val { color: #fff; font-weight: 700; white-space: nowrap; }
+
+  .iban-box { background: var(--soft); padding: 4mm; margin-top: 7mm; page-break-inside: avoid; }
+  .iban-title { font-size: 10pt; font-weight: 800; color: var(--navy); letter-spacing: 0.2pt; }
+  .iban-row { display: flex; gap: 6mm; margin-top: 2.8mm; font-size: 9.5pt; }
+  .iban-row .lbl { width: 26mm; flex: none; color: #4b5563; }
+  .iban-row .val { font-weight: 700; color: #1f2937; }
+
+  ul.cond { list-style: none; margin-top: 3mm; }
+  ul.cond li { position: relative; padding-left: 4mm; font-size: 9pt; color: #374151; margin-bottom: 1.2mm; page-break-inside: avoid; }
+  ul.cond li::before { content: "•"; position: absolute; left: 0.5mm; }
+
+  .acc-row { display: flex; justify-content: space-between; gap: 18mm; margin-top: 14mm; page-break-inside: avoid; }
+  .acc-col { flex: 1; }
+  .acc-line { border-bottom: 1px solid #1f2937; height: 10mm; }
+  .acc-lbl { font-size: 8.5pt; color: var(--muted); margin-top: 1.6mm; }
+
+  /* --- piè di pagina ripetuto --- */
+  .pg-footer {
+    padding: 3mm 16mm 3.4mm;
+    text-align: center;
+    font-size: 8pt; color: var(--muted); line-height: 1.5;
+    background: #fff;
+  }
+  .pg-footer .legal { font-style: italic; }
+</style>
+</head>
+<body>
+  <table class="w">
+    <thead>
+      <tr>
+        <td>
+          <div class="pg-header">
+            <div class="head-row">
+              <div>
+                <div class="wordmark">{{EM_NOME}}</div>
+                {{TAGLINE_HTML}}
+              </div>
+              <div class="head-info">
+                {{EM_INDIRIZZO_HTML}}
+                {{EM_PIVA_HTML}}
+              </div>
+            </div>
+          </div>
+        </td>
+      </tr>
+    </thead>
+    <tfoot>
+      <tr>
+        <td>
+          <div class="pg-footer">
+            <div>Preventivo n. {{NUMERO}} · Emesso il {{DATA_LUNGA}}</div>
+            <div class="legal">Documento non fiscale. Per accettazione restituire una copia firmata.</div>
+          </div>
+        </td>
+      </tr>
+    </tfoot>
+    <tbody>
+      <tr>
+        <td>
+          <div class="pg-body">
+<!--BODY-->
+          </div>
+        </td>
+      </tr>
+    </tbody>
+  </table>
+</body>
+</html>
