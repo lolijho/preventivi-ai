@@ -25,9 +25,14 @@ app.get('/api/stato', async (req, res) => {
   });
 });
 
-/* ---------- generazione con l'AI ---------- */
+/* ---------- generazione con l'AI (job asincrono) ----------
+   Il POST restituisce subito un jobId: la generazione dura 2-4 minuti e i
+   proxy (Cloudflare, 100s) tagliano le risposte lunghe. Il client polla
+   GET /api/generate/:jobId. */
 
-app.post('/api/generate', async (req, res) => {
+const jobs = new Map(); // jobId → { stato: 'in corso'|'pronto'|'errore', preventivo, errore }
+
+app.post('/api/generate', (req, res) => {
   const descrizione = String(req.body && req.body.descrizione || '').trim();
   const sceltaTemplate = String(req.body && req.body.template || 'auto');
 
@@ -35,29 +40,42 @@ app.post('/api/generate', async (req, res) => {
     return res.status(400).json({ errore: 'Descrivi il lavoro con almeno una frase.' });
   }
 
-  try {
-    const imp = await store.getImpostazioni();
-    const messages = [
-      { role: 'system', content: ai.buildSystemPrompt() },
-      { role: 'user', content: ai.buildUserPrompt(descrizione, sceltaTemplate, imp) },
-    ];
+  const id = `g${Date.now()}${Math.floor(Math.random() * 1000)}`;
+  jobs.set(id, { stato: 'in corso' });
 
-    let raw = await ai.chiamaGlm(messages, 12000);
-    let parsed = ai.estraiJson(raw);
-    if (!parsed) {
-      raw = await ai.chiamaGlm([...messages, { role: 'assistant', content: raw.slice(0, 4000) }, { role: 'user', content: ai.riparaJson(raw) }], 12000);
-      parsed = ai.estraiJson(raw);
+  (async () => {
+    try {
+      const imp = await store.getImpostazioni();
+      const messages = [
+        { role: 'system', content: ai.buildSystemPrompt() },
+        { role: 'user', content: ai.buildUserPrompt(descrizione, sceltaTemplate, imp) },
+      ];
+
+      let raw = await ai.chiamaGlm(messages, 12000);
+      let parsed = ai.estraiJson(raw);
+      if (!parsed) {
+        raw = await ai.chiamaGlm([...messages, { role: 'assistant', content: raw.slice(0, 4000) }, { role: 'user', content: ai.riparaJson(raw) }], 12000);
+        parsed = ai.estraiJson(raw);
+      }
+      if (!parsed) {
+        throw new Error('L\'AI non ha prodotto un JSON valido, riprova.');
+      }
+      const bozza = quote.normalizza(parsed, sceltaTemplate, imp);
+      const preventivo = await quote.completaNumero(bozza);
+      jobs.set(id, { stato: 'pronto', preventivo });
+    } catch (e) {
+      jobs.set(id, { stato: 'errore', errore: e.message });
     }
-    if (!parsed) {
-      return res.status(502).json({ errore: 'L\'AI non ha prodotto un JSON valido, riprova.' });
-    }
-    const bozza = quote.normalizza(parsed, sceltaTemplate, imp);
-    const preventivo = await quote.completaNumero(bozza);
-    res.json({ preventivo });
-  } catch (e) {
-    const status = e.code === 'NO_KEY' ? 500 : 502;
-    res.status(status).json({ errore: e.message });
-  }
+    setTimeout(() => jobs.delete(id), 10 * 60 * 1000).unref();
+  })();
+
+  res.json({ jobId: id });
+});
+
+app.get('/api/generate/:jobId', (req, res) => {
+  const j = jobs.get(req.params.jobId);
+  if (!j) return res.status(404).json({ errore: 'Generazione non trovata (scaduta o mai avviata)' });
+  res.json({ stato: j.stato, preventivo: j.preventivo || null, errore: j.errore || null });
 });
 
 /* ---------- rendering anteprima ---------- */

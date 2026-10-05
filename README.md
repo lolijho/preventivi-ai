@@ -5,7 +5,7 @@ Generatore di preventivi in PDF: descrivi il lavoro in italiano, l'AI **GLM 5.3 
 - **Servizi** — stile "All Soft X": testata chiara, accenti blu, tabella dei servizi, riepilogo canone/IVA/totale, condizioni e firme.
 - **Tecnico** — stile "CAMS": testata navy con banda oro, box dettagli/cliente, fasi della lavorazione, riepilogo economico con "Incluso", coordinate bancarie.
 
-## Avvio
+## Avvio (sviluppo locale)
 
 ```bash
 npm install
@@ -13,7 +13,25 @@ cp .env.example .env   # e incolla la tua chiave OPENROUTER_API_KEY
 npm start
 ```
 
-Apri `http://localhost:3000`.
+Apri `http://localhost:3000`. Senza `DATABASE_URL` i dati stanno in file JSON (`data/`).
+
+## Deploy con Docker e Postgres
+
+L'immagine (`node:22-alpine` + Chromium + font Liberation/Free) genera i PDF dentro il container:
+
+```bash
+docker build -t preventivi-ai .
+docker run -p 3000:3000 \
+  -e OPENROUTER_API_KEY=... \
+  -e DATABASE_URL=postgres://utente:password@host:5432/postgres \
+  preventivi-ai
+```
+
+Con `DATABASE_URL` impostata archivio, contatori e impostazioni stanno su **Postgres**
+(tabelle `preventivi`, `contatori`, `impostazioni`, create automaticamente al primo avvio;
+se i file `data/*.json` esistono ancora vengono importati una sola volta).
+Su Coolify basta creare un database Postgres nell'ambiente dell'app e impostare le
+variabili `DATABASE_URL`, `OPENROUTER_API_KEY` e `OPENROUTER_MODEL`.
 
 ## Come si usa
 

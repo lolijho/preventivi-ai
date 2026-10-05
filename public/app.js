@@ -45,7 +45,14 @@ async function caricaStato() {
   } catch { /* il server non risponde: la pagina stessa non sarebbe caricata */ }
 }
 
-/* ── generazione ── */
+/* ── generazione (job asincrono: POST → jobId → poll) ── */
+
+const PASSI_AI = [
+  'Lettura della richiesta.',
+  'Scelta del layout e strutturazione delle voci.',
+  'Stima dei prezzi e calcolo dei totali.',
+  'Composizione del documento.',
+];
 
 async function genera() {
   const descrizione = $('descrizione').value.trim();
@@ -56,16 +63,34 @@ async function genera() {
   const btn = $('btn-genera');
   btn.disabled = true;
   btn.innerHTML = '<span class="spin"></span> L\'AI sta preparando il preventivo…';
-  $('stato-ai').textContent = 'Analisi della richiesta, scelta del layout e stima dei prezzi in corso.';
+  $('stato-ai').textContent = PASSI_AI[0];
   try {
     const template = document.querySelector('#seg-template .seg-btn.attivo').dataset.template;
-    const r = await fetch('/api/generate', {
+    const r0 = await fetch('/api/generate', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ descrizione, template }),
     });
-    const d = await r.json();
-    if (!r.ok) throw new Error(d.errore || 'Errore di generazione');
+    const d0 = await r0.json();
+    if (!r0.ok) throw new Error(d0.errore || 'Errore di generazione');
+
+    // poll del job: l'AI dura 2-4 minuti, mostriamo un passo ogni tanto
+    const t0 = Date.now();
+    const d = await new Promise((risolvi, rifiuta) => {
+      const poll = async () => {
+        try {
+          const r = await fetch(`/api/generate/${d0.jobId}`);
+          const j = await r.json();
+          if (!r.ok) throw new Error(j.errore || 'Generazione non trovata');
+          if (j.stato === 'pronto') return risolvi(j);
+          if (j.stato === 'errore') throw new Error(j.errore || 'Errore di generazione');
+          $('stato-ai').textContent = PASSI_AI[Math.min(Math.floor((Date.now() - t0) / 45000), PASSI_AI.length - 1)];
+          setTimeout(poll, 2500);
+        } catch (e) { rifiuta(e); }
+      };
+      poll();
+    });
+
     state.preventivo = d.preventivo;
     state.salvatoId = null;
     $('stato-ai').textContent = '';
