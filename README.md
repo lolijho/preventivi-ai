@@ -1,6 +1,6 @@
 # Preventivi AI
 
-Generatore di preventivi in PDF: descrivi il lavoro in italiano, l'AI **GLM 5.3 Flash** (via OpenRouter) struttura cliente, voci, fasi e prezzi, e l'app compone il documento in uno dei due layout professionali inclusi:
+Preventivi in PDF costruiti **in chat**: descrivi il lavoro in italiano, l'AI **GLM 5.3 Flash** (via OpenRouter) compone il documento e tu lo vedi nascere nell'anteprima; poi chiedi modifiche a voce libera — aggiungere sezioni, spostare blocchi, correggere prezzi — e ogni messaggio riscrive il preventivo. L'app genera i PDF in due layout professionali:
 
 - **Servizi** — stile "All Soft X": testata chiara, accenti blu, tabella dei servizi, riepilogo canone/IVA/totale, condizioni e firme.
 - **Tecnico** — stile "CAMS": testata navy con banda oro, box dettagli/cliente, fasi della lavorazione, riepilogo economico con "Incluso", coordinate bancarie.
@@ -45,14 +45,15 @@ Dopo 5 tentativi falliti in 10 minuti l'IP viene bloccato per un minuto.
 
 ## Come si usa
 
-1. **Impostazioni** (in alto a destra): inserisci una volta sola i dati della tua azienda e l'IBAN. Verranno usati in tutti i preventivi.
-2. **Descrivi il lavoro** in testo libero (email, messaggio WhatsApp, appunti): l'AI sceglie il layout (o forzalo con *Auto / Servizi / Tecnico*), propone prezzi di mercato se mancano e riempie condizioni e note.
-3. **Modifica** tutto nel pannello a sinistra: l'anteprima si aggiorna in tempo reale.
-4. **Scarica PDF** (generato con Chrome headless, identico all'anteprima) o **Salva in archivio**.
+1. **Impostazioni** (in alto a destra): inserisci una volta sola i dati della tua azienda e l'IBAN. Verranno usati in tutti i preventivi e passati all'AI come dati emittente.
+2. **Chat di progetto** (riquadro a sinistra): il primo messaggio crea il preventivo (cliente, lavoro, prezzi se li hai); i messaggi successivi lo modificano — l'AI restituisce l'intero documento aggiornato e l'anteprima a destra si ricarica.
+3. **Blocchi**: sotto la barra del documento la fila di chip è la struttura del PDF. Clicca un chip per modificarlo, spostarlo o eliminarlo; "＋ Aggiungi blocco" inserisce una nuova sezione (titolo, paragrafo, elenco, fasi, voci, tabella, riepilogo, condizioni, nota, firme). *Dati* edita cliente, oggetto, IVA e scadenze.
+4. **Scarica PDF** (generato con Chrome headless, identico all'anteprima) o **Salva in archivio**: il numero assegnato resta con il preventivo, che puoi riaprire e continuare a modificare in chat.
+5. Il tema **Servizi / Tecnico** si cambia in ogni momento con i due pulsanti sopra l'anteprima.
 
 ## Numerazione
 
-I numeri vengono assegnati automaticamente se l'AI non ne propone uno:
+I numeri vengono assegnati automaticamente al salvataggio se non ne esiste già uno:
 
 - layout *Servizi*: `PRV-AAAA-MMGG-NN` (progressivo giornaliero)
 - layout *Tecnico*: `PREV-AAAA-NNN` (progressivo annuale)
@@ -60,14 +61,17 @@ I numeri vengono assegnati automaticamente se l'AI non ne propone uno:
 ## Architettura
 
 ```
-server.js            API Express (generate / render / pdf / archivio / impostazioni)
-lib/ai.js            chiamata a GLM 5.3 Flash via OpenRouter → JSON del preventivo
-lib/quote.js         normalizzazione: campi, totali (imponibile, IVA, totale), numerazione
-lib/render.js        preventivo JSON → HTML (compone i template)
+server.js            API Express (chat / render-doc / pdf-doc / salva-doc + flusso classico)
+lib/ai.js            chiamata a GLM 5.3 Flash via OpenRouter → JSON
+lib/ai-doc.js        turno di chat: storia + documento corrente → intero documento aggiornato
+lib/doc.js           modello del documento a blocchi: normalizzazione, totali, struttura base
+lib/render-doc.js    documento a blocchi → HTML completo (due temi, cornice fissa + blocchi liberi)
+lib/quote.js         flusso classico: normalizzazione, totali, numerazione
+lib/render.js        flusso classico: preventivo JSON → HTML (compone i template)
 lib/pdf.js           Chrome headless (puppeteer-core) → PDF A4 con sfondi
-templates/           i due layout (CSS di stampa incorporato, testata/piè ripetuti)
-public/              interfaccia (vanilla JS, anteprima live in iframe)
+templates/           layout del flusso classico
+public/              interfaccia: chat + anteprima live + editor blocchi (vanilla JS)
 data/                archivio preventivi, contatori, impostazioni (gitignored)
 ```
 
-Il flusso è deliberatamente **AI → JSON → template deterministico**: l'AI non genera il PDF direttamente, quindi il risultato è sempre pulito, coerente e modificabile campo per campo.
+Il PDF resta **deterministico**: l'AI non genera il documento direttamente ma riscrive l'intero documento a blocchi (lista ordinata), e il renderer lo compone. L'ordine dei blocchi è la struttura del PDF: aggiungerli, toglierli o spostarli cambia davvero il layout, senza mai perdere pulizia e coerenza di stampa. Il vecchio flusso "AI → JSON → template" resta attivo per i preventivi già in archivio.

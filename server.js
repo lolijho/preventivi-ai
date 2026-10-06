@@ -6,6 +6,9 @@ const config = require('./lib/config');
 const ai = require('./lib/ai');
 const quote = require('./lib/quote');
 const render = require('./lib/render');
+const doc = require('./lib/doc');
+const renderDoc = require('./lib/render-doc');
+const aiDoc = require('./lib/ai-doc');
 const pdf = require('./lib/pdf');
 const store = require('./lib/store');
 const auth = require('./lib/auth');
@@ -134,6 +137,106 @@ app.post('/api/render', async (req, res) => {
     const q = quote.normalizza(body, body && body.template, imp);
     const numerato = q.numero ? q : await quote.completaNumero(q);
     res.json({ html: render.renderHTML(numerato), preventivo: numerato });
+  } catch (e) {
+    res.status(400).json({ errore: e.message });
+  }
+});
+
+/* ---------- chat iterativa: documento a blocchi (job asincrono) ----------
+   Ogni turno manda la conversazione + il documento corrente; l'AI restituisce
+   l'intero documento aggiornato. Il PDF esce dal documento corrente. */
+
+const chatJobs = new Map(); // jobId → { stato: 'in corso'|'pronto'|'errore', documento, errore }
+
+app.post('/api/chat', (req, res) => {
+  const storia = Array.isArray(req.body && req.body.messaggi) ? req.body.messaggi.slice(-20) : [];
+  const ultimo = storia.filter((m) => m && m.ruolo === 'utente' && String(m.testo || '').trim()).pop();
+  if (!ultimo) {
+    return res.status(400).json({ errore: 'Scrivi cosa vuoi nel preventivo.' });
+  }
+
+  const id = `c${Date.now()}${Math.floor(Math.random() * 1000)}`;
+  chatJobs.set(id, { stato: 'in corso' });
+
+  (async () => {
+    try {
+      const imp = await store.getImpostazioni();
+      const corrente = req.body && req.body.documento ? doc.normalizzaDocumento(req.body.documento, imp) : null;
+      const { documento, nota } = await aiDoc.turno(storia, corrente, imp);
+      chatJobs.set(id, { stato: 'pronto', documento, nota });
+    } catch (e) {
+      chatJobs.set(id, { stato: 'errore', errore: e.message });
+    }
+    setTimeout(() => chatJobs.delete(id), 10 * 60 * 1000).unref();
+  })();
+
+  res.json({ jobId: id });
+});
+
+app.get('/api/chat/:jobId', (req, res) => {
+  const j = chatJobs.get(req.params.jobId);
+  if (!j) return res.status(404).json({ errore: 'Turno non trovato (scaduto o mai avviato)' });
+  res.json({ stato: j.stato, documento: j.documento || null, nota: j.nota || null, errore: j.errore || null });
+});
+
+/* ---------- rendering e PDF del documento a blocchi ---------- */
+
+app.post('/api/render-doc', async (req, res) => {
+  try {
+    const imp = await store.getImpostazioni();
+    const d = doc.normalizzaDocumento(req.body && req.body.documento, imp);
+    res.json({ html: renderDoc.renderDocHTML(d, imp), documento: d });
+  } catch (e) {
+    res.status(400).json({ errore: e.message });
+  }
+});
+
+app.post('/api/pdf-doc', async (req, res) => {
+  try {
+    const imp = await store.getImpostazioni();
+    const d = doc.normalizzaDocumento(req.body && req.body.documento, imp);
+    const html = renderDoc.renderDocHTML(d, imp);
+    const buffer = await pdf.htmlToPdf(html);
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader('Content-Disposition', `attachment; filename="${pdf.nomeFile({
+      cliente: d.cliente,
+      oggetto: d.oggetto,
+      numero: d.numero,
+    })}"`);
+    res.send(buffer);
+  } catch (e) {
+    res.status(500).json({ errore: e.message });
+  }
+});
+
+/* ---------- salvataggio documento da chat ---------- */
+
+app.post('/api/salva-doc', async (req, res) => {
+  try {
+    const imp = await store.getImpostazioni();
+    const body = req.body || {};
+    const d = doc.normalizzaDocumento(body.documento, imp);
+    if (!d.numero) d.numero = await store.nextNumero(d.tema);
+    const record = {
+      via: 'chat',
+      template: d.tema,
+      emittente: imp.emittente || { nome: '', indirizzo: '', piva: '', sito: '', tagline: '' },
+      cliente: d.cliente,
+      numero: d.numero,
+      data: d.data,
+      validita: d.validita,
+      oggetto: d.oggetto,
+      totale: d.totale,
+      imponibile: d.imponibile,
+      ivaPercent: d.ivaPercent,
+      ivaImporto: d.ivaImporto,
+      pagamento: d.pagamento,
+      coordinateBancarie: d.coordinateBancarie,
+      documento: d,
+      chat: Array.isArray(body.chat) ? body.chat.slice(-50) : [],
+    };
+    const salvato = await store.salvaPreventivo(record, body.id);
+    res.json({ id: salvato.id, documento: d, preventivi: await store.listPreventivi() });
   } catch (e) {
     res.status(400).json({ errore: e.message });
   }
